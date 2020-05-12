@@ -19,25 +19,30 @@ task_struct *pick_next_task(runqueue_t *runqueue, time_t delta_exec)
 #if defined(SCHEDULER_RR)
 	//==== Implementatin of the Round-Robin Scheduling algorithm ============
 
+	list_head *next_head = runqueue->curr->run_list.next;
+	if(next_head == &runqueue->queue)
+		next_head = next_head->next;
 
+	next = list_entry(next_head, task_struct, run_list);
 
 	//=======================================================================
-#elif defined(SCHEDULER_PRIORITY)
-	//==== Implementatin of the Priority Scheduling algorithm ===============
 
+	//==== Implementatin of the Priority Scheduling algorithm ===============
+#elif defined(SCHEDULER_PRIORITY)
 	// get the first element of the list
-	next = list_entry(/*...*/);
+	next = list_entry(runqueue->queue.next, task_struct, run_list);
 
 	// Get its static priority.
-	time_t min = /*...*/
+	time_t min = next->se.prio;
 
 	list_head *it;
 	// Inter over the runqueue to find the task with the smallest priority value
 	list_for_each (it, &runqueue->queue) {
-		task_struct *entry = list_entry(/*...*/);
+		task_struct *entry = list_entry(it, task_struct, run_list);
 		// Check entry has a lower priority
-		if (/*...*/) {
-			/*...*/
+		if (entry->se.prio < min) {
+			next = entry;
+			min = entry->se.prio;
 		}
 	}
 
@@ -47,21 +52,31 @@ task_struct *pick_next_task(runqueue_t *runqueue, time_t delta_exec)
 
 	// Get the weight of the current process.
 	// (use GET_WEIGHT macro!)
-	int weight = /*...*/
+	int weight = GET_WEIGHT(runqueue->curr->se.prio);
 
 	if (weight != NICE_0_LOAD) {
 		// get the multiplicative factor for its delta_exec.
-		double factor = /*...*/
+		double factor = (double) NICE_0_LOAD / weight;
 
 		// weight the delta_exec with the multiplicative factor.
-		delta_exec = // ...
+		delta_exec *= factor;
 	}
 
 	// Update vruntime of the current process.
-	// ...
+	runqueue->curr->se.vruntime += delta_exec;
 
 	// Inter over the runqueue to find the task with the smallest vruntime value
-	// ...
+	next = list_entry(runqueue->queue.next, task_struct, run_list);
+	time_t min = next->se.vruntime;
+
+	list_head *it;
+	list_for_each (it, &runqueue->queue) {
+		task_struct *entry = list_entry(it, task_struct, run_list);
+		if (entry->se.vruntime < min) {
+			next = entry;
+			min = entry->se.vruntime;
+		}
+	}
 
 	//========================================================================
 #else
