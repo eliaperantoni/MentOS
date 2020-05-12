@@ -126,7 +126,7 @@ void bb_free_pages(zone_t *zone, page_t *page, unsigned int order)
 		// they can be merged. Otherwise, we can stop the while-loop and insert
 		// page in the list of free blocks.
 
-		if (!(buddy->_count == -1 && buddy->private == page->private)) {
+		if (!(buddy->_count < 0 && buddy->private == order)) {
 			break;
 		}
 
@@ -142,9 +142,11 @@ void bb_free_pages(zone_t *zone, page_t *page, unsigned int order)
 		buddy->private = 0;
 
 		// Update the page index with the index of the coalesced block.
-		if(buddy_idx < page_idx) page_idx = buddy_idx;
-
-		order++;
+		if(buddy_idx < page_idx) {
+			page_idx = buddy_idx;
+			page = buddy;
+		}
+		page->private = ++order;
 	}
 
 	// The coalesced block is the result of the merging procedure.
